@@ -1802,19 +1802,21 @@ function bpiPeriodKey(){
 }
 function getBPIRows(table){
   var d=getData();
-  var key=bpiPeriodKey();
-  if(!key) return [];
   if(!d.bpiTables) d.bpiTables={};
-  if(!d.bpiTables[table]) d.bpiTables[table]={};
-  return (d.bpiTables[table][key]||[]).slice();
+  if(!d.bpiTables[table]) d.bpiTables[table]=[];
+  // Migrate old keyed format if needed
+  if(!Array.isArray(d.bpiTables[table])){
+    var allRows=[];
+    Object.values(d.bpiTables[table]).forEach(function(rows){allRows=allRows.concat(rows);});
+    d.bpiTables[table]=allRows;
+    saveAndSync(d);
+  }
+  return d.bpiTables[table].slice();
 }
 function saveBPIRows(table,rows){
   var d=getData();
-  var key=bpiPeriodKey();
-  if(!key) return;
   if(!d.bpiTables) d.bpiTables={};
-  if(!d.bpiTables[table]) d.bpiTables[table]={};
-  d.bpiTables[table][key]=rows;
+  d.bpiTables[table]=rows;
   saveAndSync(d);
 }
 function addBPIRow(table){
@@ -1863,9 +1865,14 @@ function renderBPICalendar(){
   cal.innerHTML=html;
 }
 function buildBPITable(table,label,color){
-  var rows=getBPIRows(table);
+  var allRows=getBPIRows(table);
   var fromVal=document.getElementById('bpi-from').value;
   var toVal=document.getElementById('bpi-to').value;
+  // Show rows within period, plus rows with no date yet
+  var rows=allRows.filter(function(r){
+    if(!r.date) return true;
+    return r.date>=fromVal && r.date<=toVal;
+  });
   var grandTotal=0;
   var bodyRows=rows.map(function(r){
     var amt=parseFloat(String(r.amount||'').replace(/[,]/g,''))||0;
