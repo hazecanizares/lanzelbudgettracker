@@ -427,6 +427,16 @@ textarea.note-cell-input{resize:none;overflow:hidden;line-height:1.5;min-height:
 .bpi-table-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--surface2)}
 .bpi-table-title{font-size:14px;font-weight:700;color:var(--text)}
 .bpi-table-footer{padding:10px 14px;border-top:2px solid var(--border);background:var(--surface2);display:flex;justify-content:space-between;align-items:center}
+.bpi-table-inner{overflow-x:hidden;width:100%}
+.bpi-table-inner table{width:100%;border-collapse:collapse;table-layout:fixed}
+.bpi-table-inner colgroup col.bpi-col-date{width:140px}
+.bpi-table-inner colgroup col.bpi-col-amt{width:120px}
+.bpi-table-inner colgroup col.bpi-col-del{width:32px}
+@media(max-width:640px){
+  .bpi-table-inner colgroup col.bpi-col-date{width:35%}
+  .bpi-table-inner colgroup col.bpi-col-amt{width:30%}
+  .bpi-table-inner colgroup col.bpi-col-del{width:8%}
+}
 </style>
 </head>
 <body>
@@ -1842,8 +1852,9 @@ function renderBPICalendar(){
   if(!cal) return;
   if(!fromVal||!toVal){cal.style.display='none';cal.innerHTML='';return;}
   cal.style.display='block';
-  var from=new Date(fromVal+'T00:00:00');
-  var to=new Date(toVal+'T00:00:00');
+  var fp=fromVal.split('-'),tp=toVal.split('-');
+  var from=new Date(parseInt(fp[0]),parseInt(fp[1])-1,parseInt(fp[2]));
+  var to=new Date(parseInt(tp[0]),parseInt(tp[1])-1,parseInt(tp[2]));
   if(from>to){cal.innerHTML='<div style="color:var(--red);font-size:12px">From date must be before To date</div>';return;}
   var delDates={},grocDates={};
   getBPIRows('deliveries').forEach(function(r){if(r.date)delDates[r.date]=1;});
@@ -1852,10 +1863,12 @@ function renderBPICalendar(){
   var html='<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Calendar</div>';
   html+='<div class="bpi-cal-grid">';
   days.forEach(function(d){html+='<div class="bpi-cal-day bpi-header">'+d+'</div>';});
-  var cur=new Date(from);
+  var cur=new Date(from.getFullYear(),from.getMonth(),from.getDate());
+  var toLocal=new Date(to.getFullYear(),to.getMonth(),to.getDate());
   for(var i=0;i<cur.getDay();i++) html+='<div style="background:none;border:none"></div>';
-  while(cur<=to){
-    var iso=cur.toISOString().split('T')[0];
+  while(cur<=toLocal){
+    var y=cur.getFullYear(),m=String(cur.getMonth()+1).padStart(2,'0'),d=String(cur.getDate()).padStart(2,'0');
+    var iso=y+'-'+m+'-'+d;
     var isDel=delDates[iso],isGroc=grocDates[iso];
     var cls='bpi-cal-day'+(isDel&&isGroc?' bpi-both':isDel?' bpi-del':isGroc?' bpi-groc':'');
     html+='<div class="'+cls+'"><span>'+cur.getDate()+'</span><span style="font-size:9px">'+cur.toLocaleString('default',{month:'short'})+'</span></div>';
@@ -1908,8 +1921,8 @@ function buildBPITable(table,label,color){
       '<span class="bpi-table-title" style="display:flex;align-items:center;gap:8px">'+
         '<span style="width:12px;height:12px;border-radius:50%;background:'+color+';display:inline-block"></span>'+label+'</span>'+
     '</div>'+
-    '<div><table style="width:100%;border-collapse:collapse;table-layout:fixed">'+
-      '<colgroup><col style="width:140px"><col><col style="width:120px"><col style="width:32px"></colgroup>'+
+    '<div class="bpi-table-inner"><table>'+
+      '<colgroup><col class="bpi-col-date"><col><col class="bpi-col-amt"><col class="bpi-col-del"></colgroup>'+
       '<thead><tr>'+
         '<th style="padding:7px 8px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);text-transform:uppercase;text-align:left">Date</th>'+
         '<th style="padding:7px 8px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);text-transform:uppercase;text-align:left">Item</th>'+
@@ -1933,7 +1946,7 @@ function renderBPITab(){
   var tables=document.getElementById('bpi-tables');
   if(!tables) return;
   if(!fromVal||!toVal){tables.innerHTML='<div style="color:var(--text3);font-size:12px;padding:20px 0">Select a date range to get started.</div>';return;}
-  tables.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">'+buildBPITable('deliveries','Deliveries','#e6c84a')+buildBPITable('groceries','Groceries','#9b6fc4')+'</div>';
+  var gridCols=window.innerWidth<=640?'1fr':'1fr 1fr';tables.innerHTML='<div style="display:grid;grid-template-columns:'+gridCols+';gap:16px;align-items:start">'+buildBPITable('deliveries','Deliveries','#e6c84a')+buildBPITable('groceries','Groceries','#9b6fc4')+'</div>';
 }
 
 function renderAll(){renderTotalExpense();renderPersonTab('Allan');renderPersonTab('Hazel');renderNotes();}
