@@ -152,7 +152,7 @@ th.sort-desc::after{content:' ▼';font-size:9px;color:var(--accent)}
 .free-text-val{color:var(--text);font-size:13px;font-style:italic}
 .fin-section-collapsed{display:none}
 /* NOTES TAB */
-.note-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;resize:both;min-width:260px;min-height:120px}
+.note-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:visible;resize:both;min-width:260px;min-height:120px}
 .note-table-header{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--surface2)}
 .note-table-title-input{background:transparent;border:none;border-bottom:1px dashed var(--border);color:var(--text);font-family:'DM Serif Display',serif;font-size:15px;outline:none;flex:1;padding-bottom:2px;min-width:0}
 .note-table-title-input:focus{border-color:var(--accent)}
@@ -328,12 +328,6 @@ textarea.note-cell-input{resize:none;overflow:hidden;line-height:1.5;min-height:
   .note-footer-td{padding:7px 6px !important;font-size:11px !important}
   .note-action-td{padding:0 2px !important;text-align:center !important}
   .note-action-td .btn{padding:0 2px !important;font-size:12px !important;min-width:unset !important;background:transparent !important;color:var(--red) !important;border:none !important;font-weight:700 !important}
-  #notes-container table{table-layout:fixed !important;width:100% !important}
-  #notes-container table colgroup col:nth-child(1){width:44% !important}
-  #notes-container table colgroup col:nth-child(2){width:5% !important}
-  #notes-container table colgroup col:nth-child(3){width:39% !important}
-  #notes-container table colgroup col:nth-child(4){width:12% !important}
-
   /* Sync bar */
   .sync-url-btn{font-size:10px;padding:2px 7px}
 }
@@ -1527,9 +1521,10 @@ function noteResizeStart(e,ti,ci){
   function onEnd(){
     resizer.classList.remove('dragging');
     var saved=JSON.parse(localStorage.getItem('noteColWidths')||'{}');
-    if(!saved[ti]) saved[ti]={};
-    cols.forEach(function(c,i){saved[ti]['col'+i]=c.style.width;});
-    if(tableEl) saved[ti]['tableWidth']=tableEl.style.width;
+    var key='note_'+ti;
+    if(!saved[key]) saved[key]={};
+    cols.forEach(function(c,i){saved[key]['col'+i]=c.style.width;});
+    if(tableEl) saved[key]['tableWidth']=tableEl.style.width;
     localStorage.setItem('noteColWidths',JSON.stringify(saved));
     document.removeEventListener('mousemove',onMove);
     document.removeEventListener('mouseup',onEnd);
@@ -1545,12 +1540,13 @@ function noteApplyColWidths(){
   var saved=JSON.parse(localStorage.getItem('noteColWidths')||'{}');
   document.querySelectorAll('.note-table-inner').forEach(function(inner){
     var ti=inner.dataset.ti;
-    if(!saved[ti]) return;
+    var key='note_'+ti;
+    if(!saved[key]) return;
     var tableEl=inner.querySelector('table');
     if(!tableEl) return;
     var cols=tableEl.querySelectorAll('colgroup col');
-    cols.forEach(function(c,i){if(saved[ti]['col'+i]) c.style.width=saved[ti]['col'+i];});
-    if(saved[ti]['tableWidth']) tableEl.style.width=saved[ti]['tableWidth'];
+    cols.forEach(function(c,i){if(saved[key]['col'+i]) c.style.width=saved[key]['col'+i];});
+    if(saved[key]['tableWidth']) tableEl.style.width=saved[key]['tableWidth'];
   });
 }
 function renderNotes(){
