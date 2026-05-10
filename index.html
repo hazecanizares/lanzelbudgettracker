@@ -428,14 +428,15 @@ textarea.note-cell-input{resize:none;overflow:hidden;line-height:1.5;min-height:
 .bpi-table-title{font-size:14px;font-weight:700;color:var(--text)}
 .bpi-table-footer{padding:10px 14px;border-top:2px solid var(--border);background:var(--surface2);display:flex;justify-content:space-between;align-items:center}
 .bpi-table-inner{overflow-x:hidden;width:100%}
-.bpi-table-inner table{width:100%;border-collapse:collapse;table-layout:fixed}
+.bpi-table-inner table{width:100%;border-collapse:collapse;table-layout:auto}
 .bpi-table-inner colgroup col.bpi-col-date{width:140px}
 .bpi-table-inner colgroup col.bpi-col-amt{width:120px}
 .bpi-table-inner colgroup col.bpi-col-del{width:32px}
 @media(max-width:640px){
-  .bpi-table-inner colgroup col.bpi-col-date{width:35%}
-  .bpi-table-inner colgroup col.bpi-col-amt{width:30%}
-  .bpi-table-inner colgroup col.bpi-col-del{width:8%}
+  .bpi-table-inner{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .bpi-table-inner colgroup col.bpi-col-date{width:auto}
+  .bpi-table-inner colgroup col.bpi-col-amt{width:auto}
+  .bpi-table-inner colgroup col.bpi-col-del{width:auto}
 }
 </style>
 </head>
