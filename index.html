@@ -160,7 +160,9 @@ th.sort-desc::after{content:' ▼';font-size:9px;color:var(--accent)}
 .note-cell-input{background:transparent;border:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;padding:0;white-space:pre-wrap;word-break:break-word}
 .note-cell-input::placeholder{color:var(--text3)}
 .note-cell-input:focus{outline:none}
-.note-col-header{background:var(--surface2);padding:7px 12px;font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--border);position:relative}
+.note-col-header{background:var(--surface2);padding:7px 12px;font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--border);position:relative;user-select:none;white-space:nowrap}
+.note-col-resizer{position:absolute;right:0;top:15%;bottom:15%;width:4px;cursor:col-resize;background:var(--border);border-radius:2px;z-index:1;transition:background .15s}
+.note-col-resizer:hover,.note-col-resizer.dragging{background:var(--accent)}
 .note-col-header-inner{display:flex;align-items:center;gap:4px}
 .note-col-header input{background:transparent;border:none;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;outline:none;flex:1;min-width:40px}
 .note-col-header input:focus{color:var(--text)}
@@ -427,17 +429,14 @@ textarea.note-cell-input{resize:none;overflow:hidden;line-height:1.5;min-height:
 .bpi-table-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--surface2)}
 .bpi-table-title{font-size:14px;font-weight:700;color:var(--text)}
 .bpi-table-footer{padding:10px 14px;border-top:2px solid var(--border);background:var(--surface2);display:flex;justify-content:space-between;align-items:center}
-.bpi-table-inner{overflow-x:hidden;width:100%}
-.bpi-table-inner table{width:100%;border-collapse:collapse;table-layout:auto}
-.bpi-table-inner colgroup col.bpi-col-date{width:140px}
-.bpi-table-inner colgroup col.bpi-col-amt{width:120px}
+.bpi-table-inner{overflow-x:auto;-webkit-overflow-scrolling:touch;display:inline-block;min-width:100%;vertical-align:top}
+.bpi-table-inner table{border-collapse:collapse;table-layout:fixed}
+.bpi-table-inner colgroup col.bpi-col-date{width:120px}
+.bpi-table-inner colgroup col.bpi-col-amt{width:100px}
 .bpi-table-inner colgroup col.bpi-col-del{width:32px}
-@media(max-width:640px){
-  .bpi-table-inner{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .bpi-table-inner colgroup col.bpi-col-date{width:auto}
-  .bpi-table-inner colgroup col.bpi-col-amt{width:auto}
-  .bpi-table-inner colgroup col.bpi-col-del{width:auto}
-}
+.bpi-th{position:relative;padding:7px 8px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);text-transform:uppercase;text-align:left;user-select:none;white-space:nowrap}
+.bpi-th-resizer{position:absolute;right:0;top:15%;bottom:15%;width:4px;cursor:col-resize;background:var(--border);border-radius:2px;z-index:1;transition:background .15s,width .15s}
+.bpi-th-resizer:hover,.bpi-th-resizer.dragging{background:var(--accent);width:4px;opacity:1}
 </style>
 </head>
 <body>
@@ -1501,6 +1500,59 @@ function applySortToExpenses(expenses){
 function getNotes(){var d=getData();return d.noteTables||[];}
 function saveNotes(tables){var d=getData();d.noteTables=tables;saveAndSync(d);}
 
+// Notes column resize
+function noteResizeStart(e,ti,ci){
+  e.preventDefault();
+  var startX=e.touches?e.touches[0].clientX:e.clientX;
+  var tableInner=document.querySelector('.note-table-inner[data-ti="'+ti+'"]');
+  if(!tableInner) return;
+  var tableEl=tableInner.querySelector('table');
+  var cols=tableEl?tableEl.querySelectorAll('colgroup col'):[];
+  var targetCol=cols[ci];
+  if(!targetCol) return;
+  var startW=targetCol.offsetWidth||parseInt(targetCol.style.width)||100;
+  var resizer=e.target;
+  resizer.classList.add('dragging');
+  function onMove(ev){
+    var x=ev.touches?ev.touches[0].clientX:ev.clientX;
+    var newW=Math.max(40,startW+(x-startX));
+    targetCol.style.width=newW+'px';
+    if(tableEl){
+      var total=0;
+      cols.forEach(function(c){total+=parseInt(c.style.width||c.offsetWidth||60);});
+      tableEl.style.width=total+'px';
+      tableEl.style.minWidth='unset';
+    }
+  }
+  function onEnd(){
+    resizer.classList.remove('dragging');
+    var saved=JSON.parse(localStorage.getItem('noteColWidths')||'{}');
+    if(!saved[ti]) saved[ti]={};
+    cols.forEach(function(c,i){saved[ti]['col'+i]=c.style.width;});
+    if(tableEl) saved[ti]['tableWidth']=tableEl.style.width;
+    localStorage.setItem('noteColWidths',JSON.stringify(saved));
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onEnd);
+    document.removeEventListener('touchmove',onMove);
+    document.removeEventListener('touchend',onEnd);
+  }
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onEnd);
+  document.addEventListener('touchmove',onMove,{passive:false});
+  document.addEventListener('touchend',onEnd);
+}
+function noteApplyColWidths(){
+  var saved=JSON.parse(localStorage.getItem('noteColWidths')||'{}');
+  document.querySelectorAll('.note-table-inner').forEach(function(inner){
+    var ti=inner.dataset.ti;
+    if(!saved[ti]) return;
+    var tableEl=inner.querySelector('table');
+    if(!tableEl) return;
+    var cols=tableEl.querySelectorAll('colgroup col');
+    cols.forEach(function(c,i){if(saved[ti]['col'+i]) c.style.width=saved[ti]['col'+i];});
+    if(saved[ti]['tableWidth']) tableEl.style.width=saved[ti]['tableWidth'];
+  });
+}
 function renderNotes(){
   var tables=getNotes();
   var container=document.getElementById('notes-container');
@@ -1546,6 +1598,7 @@ function renderNotes(){
           '<input value="'+escH(col)+'" onchange="renameNoteCol('+ti+','+ci+',this.value)" placeholder="Col '+(ci+1)+'">'+
           '<button class="note-del-col-btn" onclick="deleteNoteCol('+ti+','+ci+')" title="Delete column">&#215;</button>'+
         '</div>'+
+        '<div class="note-col-resizer" onmousedown="noteResizeStart(event,'+ti+','+ci+')" ontouchstart="noteResizeStart(event,'+ti+','+ci+')"></div>'+
       '</th>';
     }).join('');
     var thRow='<thead><tr>'+thCols+'<th class="note-action-th" style="width:6%"></th></tr></thead>';
@@ -1622,15 +1675,16 @@ function renderNotes(){
         '<input class="note-table-title-input" value="'+escH(t.title||'')+'" onchange="renameNoteTable('+ti+',this.value)" placeholder="Table title...">'+
         '<button class="btn btn-danger btn-sm" onclick="deleteNoteTable('+ti+')" title="Delete table">&#128465;</button>'+
       '</div>'+
-      '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">'+
-        '<table style="width:100%;border-collapse:collapse;table-layout:fixed">'+
-          '<colgroup><col style="width:150px"><col style="width:14px"><col style="width:120px"><col style="width:28px"></colgroup>'+
+      '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;display:inline-block;min-width:100%;vertical-align:top" class="note-table-inner" data-ti="'+ti+'">'+
+        '<table style="border-collapse:collapse;table-layout:fixed" class="note-inner-table">'+
+          '<colgroup><col class="note-col-det" style="width:150px"><col class="note-col-peso" style="width:14px"><col class="note-col-amt" style="width:120px"><col class="note-col-del" style="width:28px"></colgroup>'+
           thRow+'<tbody>'+bodyRows+'</tbody>'+footerRow+
         '</table>'+
       '</div>'+
     '</div>';
   }).join('');
 
+  noteApplyColWidths();
   // Auto-resize all textareas + update grid
   setTimeout(function(){
     document.querySelectorAll('.note-cell-input').forEach(function(el){
@@ -1923,12 +1977,12 @@ function buildBPITable(table,label,color){
         '<span style="width:12px;height:12px;border-radius:50%;background:'+color+';display:inline-block"></span>'+label+'</span>'+
     '</div>'+
     '<div class="bpi-table-inner"><table>'+
-      '<colgroup><col class="bpi-col-date"><col><col class="bpi-col-amt"><col class="bpi-col-del"></colgroup>'+
+      '<colgroup><col class="bpi-col-date"><col class="bpi-col-item"><col class="bpi-col-amt"><col class="bpi-col-del"></colgroup>'+
       '<thead><tr>'+
-        '<th style="padding:7px 8px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);text-transform:uppercase;text-align:left">Date</th>'+
-        '<th style="padding:7px 8px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);text-transform:uppercase;text-align:left">Item</th>'+
-        '<th style="padding:7px 8px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);text-transform:uppercase;text-align:center">Amount</th>'+
-        '<th style="background:var(--surface2);border-bottom:1px solid var(--border)"></th>'+
+        '<th class="bpi-th" id="bpi-th-date-'+table+'">Date<div class="bpi-th-resizer" onmousedown="bpiResizeStart(event,\'bpi-col-date\',\''+table+'\')" ontouchstart="bpiResizeStart(event,\'bpi-col-date\',\''+table+'\')"></div></th>'+
+        '<th class="bpi-th" id="bpi-th-item-'+table+'">Item<div class="bpi-th-resizer" onmousedown="bpiResizeStart(event,\'bpi-col-item\',\''+table+'\')" ontouchstart="bpiResizeStart(event,\'bpi-col-item\',\''+table+'\')"></div></th>'+
+        '<th class="bpi-th" style="text-align:center" id="bpi-th-amt-'+table+'">Amount<div class="bpi-th-resizer" onmousedown="bpiResizeStart(event,\'bpi-col-amt\',\''+table+'\')" ontouchstart="bpiResizeStart(event,\'bpi-col-amt\',\''+table+'\')"></div></th>'+
+        '<th class="bpi-th" style="width:32px"></th>'+
       '</tr></thead>'+
       '<tbody>'+bodyRows+'</tbody>'+
       '<tfoot><tr><td colspan="4" style="padding:6px 8px;border-top:1px solid var(--border)">'+
@@ -1940,6 +1994,69 @@ function buildBPITable(table,label,color){
       '<span style="font-size:15px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums">&#8369;'+fmt(grandTotal)+'</span>'+
     '</div></div>';
 }
+// BPI column resize
+var bpiResizing=null;
+function bpiResizeStart(e,colClass,table){
+  e.preventDefault();
+  var startX=e.touches?e.touches[0].clientX:e.clientX;
+  var col=document.querySelector('.bpi-table-wrap #bpi-th-'+colClass.replace('bpi-col-','')+'-'+table)
+       ||document.querySelector('.'+colClass);
+  var tableEl=col?col.closest('table'):null;
+  var cols=tableEl?tableEl.querySelectorAll('colgroup col'):[];
+  var targetCol=null;
+  cols.forEach(function(c){if(c.classList.contains(colClass)) targetCol=c;});
+  if(!targetCol) return;
+  var startW=targetCol.offsetWidth||parseInt(targetCol.style.width)||100;
+  var resizer=e.target;
+  resizer.classList.add('dragging');
+  function onMove(ev){
+    var x=ev.touches?ev.touches[0].clientX:ev.clientX;
+    var newW=Math.max(40,startW+(x-startX));
+    targetCol.style.width=newW+'px';
+    // Let table shrink naturally
+    if(tableEl){
+      var total=0;
+      cols.forEach(function(c){total+=parseInt(c.style.width||c.offsetWidth||60);});
+      tableEl.style.width=total+'px';
+      tableEl.style.minWidth='unset';
+    }
+  }
+  function onEnd(){
+    resizer.classList.remove('dragging');
+    // Save widths
+    var saved=JSON.parse(localStorage.getItem('bpiColWidths')||'{}');
+    if(!saved[table]) saved[table]={};
+    saved[table][colClass]=targetCol.style.width;
+    if(tableEl) saved[table]['tableWidth']=tableEl.style.width;
+    localStorage.setItem('bpiColWidths',JSON.stringify(saved));
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onEnd);
+    document.removeEventListener('touchmove',onMove);
+    document.removeEventListener('touchend',onEnd);
+  }
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onEnd);
+  document.addEventListener('touchmove',onMove,{passive:false});
+  document.addEventListener('touchend',onEnd);
+}
+function bpiApplyColWidths(table){
+  var saved=JSON.parse(localStorage.getItem('bpiColWidths')||'{}');
+  if(!saved[table]) return;
+  var wraps=document.querySelectorAll('.bpi-table-wrap');
+  wraps.forEach(function(wrap){
+    if(!wrap.innerHTML.includes('bpi-th-date-'+table)) return;
+    var tableEl=wrap.querySelector('table');
+    if(!tableEl) return;
+    var cols=tableEl.querySelectorAll('colgroup col');
+    cols.forEach(function(c){
+      ['bpi-col-date','bpi-col-item','bpi-col-amt'].forEach(function(cls){
+        if(c.classList.contains(cls)&&saved[table][cls]) c.style.width=saved[table][cls];
+      });
+    });
+    if(saved[table]['tableWidth']) tableEl.style.width=saved[table]['tableWidth'];
+  });
+}
+
 function renderBPITab(){
   var fromVal=document.getElementById('bpi-from').value;
   var toVal=document.getElementById('bpi-to').value;
@@ -1947,7 +2064,10 @@ function renderBPITab(){
   var tables=document.getElementById('bpi-tables');
   if(!tables) return;
   if(!fromVal||!toVal){tables.innerHTML='<div style="color:var(--text3);font-size:12px;padding:20px 0">Select a date range to get started.</div>';return;}
-  var gridCols=window.innerWidth<=640?'1fr':'1fr 1fr';tables.innerHTML='<div style="display:grid;grid-template-columns:'+gridCols+';gap:16px;align-items:start">'+buildBPITable('deliveries','Deliveries','#e6c84a')+buildBPITable('groceries','Groceries','#9b6fc4')+'</div>';
+  var gridCols=window.innerWidth<=640?'1fr':'1fr 1fr';
+  tables.innerHTML='<div style="display:grid;grid-template-columns:'+gridCols+';gap:16px;align-items:start">'+buildBPITable('deliveries','Deliveries','#e6c84a')+buildBPITable('groceries','Groceries','#9b6fc4')+'</div>';
+  bpiApplyColWidths('deliveries');
+  bpiApplyColWidths('groceries');
 }
 
 function renderAll(){renderTotalExpense();renderPersonTab('Allan');renderPersonTab('Hazel');renderNotes();}
