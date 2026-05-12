@@ -242,7 +242,7 @@ textarea.note-cell-input{resize:none;overflow:hidden;line-height:1.5;min-height:
 
   /* Tables — horizontal scroll */
   .expense-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r-sm)}
-  table{min-width:540px}
+  table{min-width:358px}
   th{font-size:10px;padding:8px 8px}
   td{font-size:12px;padding:7px 8px}
 
@@ -319,6 +319,10 @@ textarea.note-cell-input{resize:none;overflow:hidden;line-height:1.5;min-height:
 
   /* Notes table — mobile */
   .note-table-wrap{resize:none !important;min-width:unset !important;max-width:100% !important;box-sizing:border-box !important}
+  .note-table-inner{width:100% !important;min-width:unset !important;display:block !important}
+  .note-inner-table{width:100% !important;min-width:unset !important}
+  .note-col-det{width:auto !important}
+  .note-col-amt{width:100px !important}
   #tab-notes{overflow-x:hidden !important}
   #notes-container{overflow-x:hidden !important}
   .note-td{padding:5px 6px !important;font-size:11px !important}
@@ -425,7 +429,7 @@ textarea.note-cell-input{resize:none;overflow:hidden;line-height:1.5;min-height:
 .bpi-table-footer{padding:10px 14px;border-top:2px solid var(--border);background:var(--surface2);display:flex;justify-content:space-between;align-items:center}
 .bpi-table-inner{overflow-x:auto;-webkit-overflow-scrolling:touch;display:inline-block;min-width:100%;vertical-align:top}
 .bpi-table-inner table{border-collapse:collapse;table-layout:fixed}
-.bpi-table-inner colgroup col.bpi-col-date{width:120px}
+.bpi-table-inner colgroup col.bpi-col-date{width:60px}
 .bpi-table-inner colgroup col.bpi-col-amt{width:100px}
 .bpi-table-inner colgroup col.bpi-col-del{width:32px}
 .bpi-th{position:relative;padding:7px 8px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);text-transform:uppercase;text-align:left;user-select:none;white-space:nowrap}
@@ -1943,11 +1947,14 @@ function buildBPITable(table,label,color){
     grandTotal+=amt;
     var inputStyle='width:100%;font-size:12px;border:none;background:transparent;color:var(--text);outline:none;font-family:inherit;padding:0;cursor:pointer';
     var amtStyle='text-align:right;width:100%;font-size:12px;border:none;background:transparent;color:var(--text);outline:none;font-family:inherit;padding:0;font-variant-numeric:tabular-nums;cursor:pointer';
+    var mmdd=r.date?(r.date.slice(5,7)+'/'+r.date.slice(8,10)):'—';
     return '<tr>'+
-      '<td style="padding:7px 8px;border-bottom:1px solid var(--border);width:140px">'+
+      '<td style="padding:7px 8px;border-bottom:1px solid var(--border);width:60px;text-align:left;white-space:nowrap">'+
+        '<span style="font-size:12px;color:var(--text);cursor:pointer;display:inline-block" onclick="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline-block\';this.nextElementSibling.focus()">'+mmdd+'</span>'+
         '<input type="date" value="'+escH(r.date||'')+'" min="'+fromVal+'" max="'+toVal+'" '+
-        'style="'+inputStyle+'" '+
-        'onchange="updateBPIRow(\''+table+'\',\''+escH(r.id)+'\',\'date\',this.value)">'+
+        'style="display:none;width:100%;font-size:11px;border:none;background:transparent;color:var(--text);outline:none;font-family:inherit;padding:0" '+
+        'onchange="updateBPIRow(\''+table+'\',\''+escH(r.id)+'\',\'date\',this.value);var s=this.value?(this.value.slice(5,7)+\'/\'+this.value.slice(8,10)):\'—\';this.previousElementSibling.textContent=s;this.style.display=\'none\';this.previousElementSibling.style.display=\'inline-block\'" '+
+        'onblur="this.style.display=\'none\';this.previousElementSibling.style.display=\'inline-block\'">'+
       '</td>'+
       '<td style="padding:7px 8px;border-bottom:1px solid var(--border)">'+
         '<input type="text" value="'+escH(r.item||'')+'" placeholder="..." '+
